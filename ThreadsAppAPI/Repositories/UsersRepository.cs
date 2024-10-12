@@ -8,13 +8,15 @@ namespace ThreadsAppAPI.Repositories;
 public class UsersRepository : IUsersRepository
 {
     private string _connString;
+    private IConfiguration _config;
 
     public UsersRepository(IConfiguration config)
     {
-        _connString = config.GetConnectionString("DefaultConnection");
+        _config = config;
+        _connString = config.GetSection("ConnectionString:DefaultConnection").Value;
     }
     
-    public async Task<User?> GenerateSingleUser(UserSignUp userSignUp, string hashedPass)
+    public async Task<LoggedUserData?> GenerateSingleUser(UserSignUp userSignUp, string hashedPass, string role)
     {
 
         using (IDbConnection cnn = new NpgsqlConnection(_connString))
@@ -38,14 +40,15 @@ public class UsersRepository : IUsersRepository
             {
                 UserId = userId,
                 HashedPass = hashedPass,
+                Role = role,
             };
             
-            var qr2 =  @"INSERT INTO users_auth(user_id, hashed_pass, verified_Email)
-                        VALUES(@UserId,@HashedPass,false);";
+            var qr2 =  @"INSERT INTO users_auth(user_id, hashed_pass, verified_Email, role)
+                        VALUES(@UserId,@HashedPass,false, @Role);";
             
             await cnn.ExecuteAsync(qr2, p2);
             
-            var newUser = new User
+            var newUser = new LoggedUserData
             {
                 UserId = userId,
                 UserAlias = userSignUp.UserAlias,
@@ -60,6 +63,7 @@ public class UsersRepository : IUsersRepository
     
     public async Task<User?> DoesUserExist(string? userAlias, string? email)
     {
+        Console.WriteLine(_connString);
         using (IDbConnection cnn = new NpgsqlConnection(_connString))
         {
             var p = new
@@ -77,6 +81,30 @@ public class UsersRepository : IUsersRepository
             var user = await cnn.QueryFirstOrDefaultAsync<User>(qr, p);
             
             return user;
+        }
+        
+    }
+    
+    public async Task<string?> GetUserRole(string? userAlias, string? email)
+    {
+        Console.WriteLine(_connString);
+        using (IDbConnection cnn = new NpgsqlConnection(_connString))
+        {
+            var p = new
+            {
+                UserAlias = userAlias,
+                Email = email
+            };
+            
+            var qr = @"SELECT role
+                        FROM users us
+                        INNER JOIN users_auth au
+                        ON us.user_id = au.user_id
+                        WHERE us.user_alias = @UserAlias OR us.email = @Email";
+
+            var role = await cnn.QueryFirstOrDefaultAsync<string>(qr, p);
+            
+            return role;
         }
         
     }

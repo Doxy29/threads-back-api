@@ -4,8 +4,9 @@ namespace ThreadsAppAPI.Repositories;
 
 public interface IUsersRepository
 {
-    Task<User?> GenerateSingleUser(UserSignUp userSignUp, string hashedPass);
+    Task<LoggedUserData?> GenerateSingleUser(UserSignUp userSignUp, string hashedPass, string role);
     
     Task<User?> DoesUserExist(string? userName, string? email);
+    Task<string?> GetUserRole(string? userName, string? email);
 
 }

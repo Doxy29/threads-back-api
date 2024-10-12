@@ -1,6 +1,8 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.Filters;
 using ThreadsAppAPI.Configuration;
 using ThreadsAppAPI.Repositories;
 using ThreadsAppAPI.Services.Authentication;
@@ -15,7 +17,19 @@ builder.Services.AddControllers();
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
+    {
+        Description = "Standard Authorization header using the Bearer scheme (\"bearer {token}\")",
+        In = ParameterLocation.Header,
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey
+    });
+
+    options.OperationFilter<SecurityRequirementsOperationFilter>();
+    
+});
 
 builder.Services.AddScoped<ICustomAuthenticationRepository, CustomAuthenticationRepository>();
 builder.Services.AddScoped<IUsersRepository, UsersRepository>();
@@ -48,18 +62,20 @@ builder.Services.AddAuthentication(options =>
             RequireExpirationTime = true, //TODO add refresh token
             ValidateLifetime = true
         };
+        
     });
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ReactApp", policyBuilder =>
     {
-        policyBuilder.WithOrigins("http://localhost:5173");
-        policyBuilder.AllowAnyHeader();
-        policyBuilder.AllowAnyMethod();
-        policyBuilder.AllowCredentials();
+        policyBuilder.WithOrigins("http://localhost:5173")
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
     });
 });
+
 
 var app = builder.Build();
 
@@ -70,6 +86,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("ReactApp");
+
 app.UseHttpsRedirection();
 
 app.UseHttpsRedirection();
@@ -79,8 +97,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-app.UseCors("ReactApp");
 
 Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
 

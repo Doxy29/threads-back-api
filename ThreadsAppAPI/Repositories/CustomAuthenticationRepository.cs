@@ -8,7 +8,7 @@ public class CustomAuthenticationRepository : ICustomAuthenticationRepository
 
     public CustomAuthenticationRepository(IConfiguration config)
     {
-        _connString = config.GetConnectionString("DefaultConnection");
+        _connString = config.GetSection("ConnectionString:DefaultConnection").Value;
     }
     
     public Task<User> Login(UserLogin userLogin)

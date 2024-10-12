@@ -1,5 +1,5 @@
 ﻿using System.Net;
-using Amazon.Runtime;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ThreadsAppAPI.Models.Authentication;
 using ThreadsAppAPI.Models.AWS;
@@ -7,6 +7,7 @@ using ThreadsAppAPI.Services.Authentication;
 using ThreadsAppAPI.Services.AWS;
 using ThreadsAppAPI.Services.Users;
 using ThreadsAppAPI.Utilities;
+
 
 namespace ThreadsAppAPI.Controllers;
 
@@ -19,55 +20,76 @@ public class AuthenticationController : ControllerBase
     private readonly IAuthenticationService _authenticationService;
     private readonly IUsersService _usersService;
     private readonly IStorageService _storageService;
-    private readonly IConfiguration _configuration;
-    
 
     public AuthenticationController(
         IAuthenticationService authenticationService, 
         IUsersService usersService,
-        IStorageService storageService,
-        IConfiguration configuration
+        IStorageService storageService
     ){
         _authenticationService = authenticationService;
         _usersService = usersService;
         _storageService = storageService;
-        _configuration = configuration;
     }
     
     [HttpPost]
-    [Route("login")]
-    public async Task<string> SignIn(UserLogin userLogin)
+    [Route("signIn")]
+    public async Task<ActionResult<LoggedUserData>> SignIn(UserLogin userLogin)
     {
 
-        if (userLogin.UserAlias == null && userLogin.Email == null) throw new WebException("Insert User name or email");
+        if (userLogin.UserAlias == null && userLogin.Email == null) return BadRequest("Insert User alias or email");
         
         var userFound = await _usersService.DoesUserExist(userLogin.UserAlias, userLogin.Email);
         
         if (userFound != null && userFound.HashedPass != null  && HashHandler.CheckPassToHash(userLogin.Password, userFound.HashedPass))
         {
-            return await _authenticationService.GenerateToken(new UserLogin {UserAlias = userFound.UserAlias, Email = userFound.Email, Password = userLogin.Password});
+            var role = await _usersService.GetUserRole(userLogin.UserAlias, userLogin.Email);
+            
+            var token = await _authenticationService.GenerateToken(new UserLogin {UserAlias = userFound.UserAlias, Email = userFound.Email, Password = userLogin.Password}, role);
+            
+            LoggedUserData data = new LoggedUserData()
+            {
+                UserId = userFound.UserId,
+                UserAlias = userFound.UserAlias,
+                UserName = userFound.UserName,
+                UserSurname = userFound.UserSurname,
+                Auth = new AutheticationData()
+                {
+                    Token = token,
+                    Role = role
+                }
+            };
+            
+            return Ok(data);
         }
-        
-        throw new WebException("Wrong password");
+
+        return BadRequest("Wrong credentials");
     }
     
     [HttpPost]
     [Route("signup")]
-    public async Task<User?> SignUp(UserSignUp userSignUp)
+    public async Task<ActionResult<LoggedUserData>> SignUp(UserSignUp userSignUp)
     {
         //TODO uncomment on deploy
         //if (!UtilityFunctions.IsEmailValid(userSignUp.Email) ) throw new WebException("Invalid email");
         //if (!UtilityFunctions.IsPasswordValid(userSignUp.Password1)) throw new WebException("Password invalid password");
         if (userSignUp.Password1 != userSignUp.Password2) throw new WebException("Passwords don't match");
         
-        var result = await _authenticationService.Signup(userSignUp);
-        if(result == null) throw new WebException("User already exists");
+        var result = await _authenticationService.Signup(userSignUp, "User");
+        if(result == null) return BadRequest("Insert User alias or email");
         return result;
+    }
+    
+    [Authorize]
+    [HttpGet]
+    [Route("auth")]
+    public async Task<IActionResult> Auttt()
+    {
+        return Ok();
     }
     
     [HttpPost]
     [Route("aws")]
-    public async Task<ActionResult<S3ResponseDto>> StorageService(IFormFile file)
+    public async Task<IActionResult> StorageService(IFormFile file)
     {
         var s3Obj = new S3Object()
         {

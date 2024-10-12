@@ -14,12 +14,12 @@ public class JwtHandler:IJwtHandler
     {
         _configuration = configuration;
     }
-    public async Task<string> Generate(UserLogin userLogin)
+    public async Task<string> Generate(UserLogin userLogin, String role)
     {
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.Name, userLogin.UserAlias),
-            new Claim(ClaimTypes.Role, "User")
+            new Claim(ClaimTypes.Role, role)
         };
 
         var key = new SymmetricSecurityKey(

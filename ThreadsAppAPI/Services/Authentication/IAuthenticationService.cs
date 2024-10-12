@@ -5,7 +5,7 @@ namespace ThreadsAppAPI.Services.Authentication;
 
 public interface IAuthenticationService
 {
-    Task<User?> Signup(UserSignUp userSignUp);
+    Task<LoggedUserData?> Signup(UserSignUp userSignUp, string role);
 
-    Task<string> GenerateToken(UserLogin userLogin);
+    Task<string> GenerateToken(UserLogin userLogin, string role);
 }

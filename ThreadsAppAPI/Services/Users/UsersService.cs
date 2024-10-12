@@ -15,5 +15,8 @@ public class UsersService: IUsersService
     public Task<User?> DoesUserExist(string? userName, string? email)
     {
         return _usersRepository.DoesUserExist(userName, email);
+    } public Task<string?> GetUserRole(string? userName, string? email)
+    {
+        return _usersRepository.GetUserRole(userName, email);
     }
 }

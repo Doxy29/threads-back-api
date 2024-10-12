@@ -15,7 +15,7 @@ public class AuthenticationService : IAuthenticationService
         _jwtHandler = jwtHandler;
     }
     
-    public async Task<User?> Signup(UserSignUp userSignUp)
+    public async Task<LoggedUserData?> Signup(UserSignUp userSignUp, string role)
     {
 
         var searchUser = await _usersRepository.DoesUserExist(userSignUp.UserAlias, userSignUp.Email);
@@ -23,17 +23,18 @@ public class AuthenticationService : IAuthenticationService
         if (searchUser == null)
         {
             var hashedPass = HashHandler.HashPass(userSignUp.Password1);
-            var newUser = await _usersRepository.GenerateSingleUser(userSignUp, hashedPass);
+            var newUser = await _usersRepository.GenerateSingleUser(userSignUp, hashedPass, role);
             
             var token = await GenerateToken(
-                new UserLogin { UserAlias = newUser.UserAlias, Email = newUser.Email, Password = userSignUp.Password1 }
+                new UserLogin { UserAlias = newUser.UserAlias, Email = newUser.Email, Password = userSignUp.Password1 },
+                role
                 );
             
             newUser.Auth = new AutheticationData
             {
                 Token = token,
                 ResetToken = null,
-                Role = "user"
+                Role = role
             };
 
             return newUser;
@@ -43,8 +44,8 @@ public class AuthenticationService : IAuthenticationService
 
     }
 
-    public Task<string> GenerateToken(UserLogin userLogin)
+    public Task<string> GenerateToken(UserLogin userLogin, string role)
     {
-        return _jwtHandler.Generate(userLogin);
+        return _jwtHandler.Generate(userLogin, role);
     }
 }
